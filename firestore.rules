@@ -1,0 +1,133 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: mappings
+    // Document ID: auto-generated
+    // Fields:
+    //   - userId: string (required, immutable) - ID of the user who created the mapping
+    //   - rawName: string (required) - The raw name extracted from the invoice
+    //   - productCode: string (required) - The matched product code from KiotViet
+    //   - updatedAt: timestamp (required) - When the mapping was updated
+    //
+    // Collection: products
+    // Document ID: {userId}_{productCode}
+    // Fields:
+    //   - userId: string (required, immutable) - ID of the user who uploaded the product
+    //   - code: string (required) - Product code from KiotViet
+    //   - name: string (required) - Product name from KiotViet
+    //   - data: string (required) - JSON stringified raw data of the product row
+    //   - updatedAt: timestamp (required) - When the product was last updated
+    //
+    // Collection: templates
+    // Document ID: {userId}
+    // Fields:
+    //   - userId: string (required, immutable)
+    //   - headers: list (required)
+    //   - updatedAt: timestamp (required)
+    //
+    // ===============================================================
+    
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+    
+    function uidUnchanged() {
+      return !('userId' in request.resource.data) || request.resource.data.userId == request.auth.uid;
+    }
+    
+    function uidNotModified() {
+      return !('userId' in request.resource.data) || request.resource.data.userId == resource.data.userId;
+    }
+    
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+    
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+    
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+    
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidMapping(data) {
+      return hasOnlyAllowedFields(['userId', 'rawName', 'productCode', 'standardizedName', 'dimensions', 'thickness', 'updatedAt']) &&
+             hasRequiredFields(['userId', 'rawName', 'productCode', 'updatedAt']) &&
+             data.userId is string && data.userId.size() > 0 && data.userId.size() < 100 &&
+             data.rawName is string && data.rawName.size() > 0 && data.rawName.size() < 500 &&
+             data.productCode is string && data.productCode.size() > 0 && data.productCode.size() < 200 &&
+             (!('standardizedName' in data) || (data.standardizedName is string && data.standardizedName.size() <= 500)) &&
+             (!('dimensions' in data) || (data.dimensions is string && data.dimensions.size() <= 100)) &&
+             (!('thickness' in data) || (data.thickness is string && data.thickness.size() <= 100)) &&
+             data.updatedAt is timestamp;
+    }
+
+    function isValidProduct(data) {
+      return hasOnlyAllowedFields(['userId', 'code', 'name', 'data', 'updatedAt']) &&
+             hasRequiredFields(['userId', 'code', 'name', 'data', 'updatedAt']) &&
+             data.userId is string && data.userId.size() > 0 && data.userId.size() < 100 &&
+             data.code is string && data.code.size() > 0 && data.code.size() < 200 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 500 &&
+             data.data is string && data.data.size() > 0 && data.data.size() < 100000 &&
+             data.updatedAt is timestamp;
+    }
+
+    function isValidTemplate(data) {
+      return hasOnlyAllowedFields(['userId', 'headers', 'updatedAt']) &&
+             hasRequiredFields(['userId', 'headers', 'updatedAt']) &&
+             data.userId is string && data.userId.size() > 0 && data.userId.size() < 100 &&
+             data.headers is list && data.headers.size() <= 200 &&
+             data.updatedAt is timestamp;
+    }
+
+    match /mappings/{mappingId} {
+      allow read: if isDocOwner();
+      allow create: if isAuthenticated() && 
+                       isValidMapping(request.resource.data) && 
+                       request.resource.data.userId == request.auth.uid;
+      allow update: if isDocOwner() && 
+                       isValidMapping(request.resource.data) && 
+                       uidNotModified();
+      allow delete: if isDocOwner();
+    }
+
+    match /products/{productId} {
+      allow read: if isDocOwner();
+      allow create: if isAuthenticated() && 
+                       isValidProduct(request.resource.data) && 
+                       request.resource.data.userId == request.auth.uid;
+      allow update: if isDocOwner() && 
+                       isValidProduct(request.resource.data) && 
+                       uidNotModified();
+      allow delete: if isDocOwner();
+    }
+
+    match /templates/{templateId} {
+      allow read: if isAuthenticated() && request.auth.uid == templateId;
+      allow create, update: if isAuthenticated() && 
+                               isValidTemplate(request.resource.data) && 
+                               request.resource.data.userId == request.auth.uid &&
+                               templateId == request.auth.uid;
+      allow delete: if isAuthenticated() && request.auth.uid == templateId;
+    }
+  }
+}

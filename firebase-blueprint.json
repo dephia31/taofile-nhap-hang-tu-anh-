@@ -1,0 +1,100 @@
+{
+  "entities": {
+    "ProductMapping": {
+      "title": "ProductMapping",
+      "description": "A mapping between an extracted invoice item name and a KiotViet product code.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user who created this mapping."
+        },
+        "rawName": {
+          "type": "string",
+          "description": "The raw name extracted from the invoice."
+        },
+        "productCode": {
+          "type": "string",
+          "description": "The matched product code from KiotViet."
+        },
+        "standardizedName": {
+          "type": "string",
+          "description": "The standardized name after processing."
+        },
+        "dimensions": {
+          "type": "string",
+          "description": "The extracted dimensions."
+        },
+        "thickness": {
+          "type": "string",
+          "description": "The extracted thickness."
+        },
+        "updatedAt": {
+          "type": "timestamp",
+          "description": "When the mapping was created."
+        }
+      },
+      "required": ["userId", "rawName", "productCode", "updatedAt"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "A product imported from KiotViet.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user who uploaded this product."
+        },
+        "code": {
+          "type": "string",
+          "description": "The product code from KiotViet."
+        },
+        "name": {
+          "type": "string",
+          "description": "The product name from KiotViet."
+        },
+        "data": {
+          "type": "string",
+          "description": "JSON stringified raw data of the product row."
+        },
+        "updatedAt": {
+          "type": "timestamp",
+          "description": "When the product was last updated."
+        }
+      },
+      "required": ["userId", "code", "name", "data", "updatedAt"]
+    },
+    "Template": {
+      "title": "Template",
+      "description": "Template headers for exporting.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string"
+        },
+        "headers": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "updatedAt": {
+          "type": "timestamp"
+        }
+      },
+      "required": ["userId", "headers", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/mappings/{mappingId}": {
+      "schema": { "$ref": "#/entities/ProductMapping" },
+      "description": "Stores all product mappings created by users."
+    },
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Stores all products imported from KiotViet by users."
+    },
+    "/templates/{templateId}": {
+      "schema": { "$ref": "#/entities/Template" },
+      "description": "Stores template headers for exporting."
+    }
+  }
+}

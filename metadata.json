@@ -1,0 +1,7 @@
+{
+  "name": "Nhập Hàng Từ Ảnh ",
+  "description": "App hỗ trợ chụp ảnh hóa đơn, trích xuất dữ liệu và đối chiếu với database KiotViet để tạo file excel nhập hàng.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
